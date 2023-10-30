@@ -1,0 +1,6 @@
+[logging]
+log_file = whispernote.log
+
+[huggingface]
+api_key=<api_key>
+
