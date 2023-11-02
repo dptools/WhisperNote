@@ -28,8 +28,8 @@ def process_whisper_transcript(whisper_json: str) -> str:
 
 
 def generate_diarized_subtitles(
-    whisper_json: str, diarization_path: str, srt_path: str
-) -> str:
+    whisper_json: str, diarization_path: str, srt_path: str, max_words_per_line: int = 7
+) -> None:
     transcript = process_whisper_transcript(whisper_json).strip().split("\n")
     diarization = open(diarization_path).read().strip().split("\n")
 
@@ -70,7 +70,7 @@ def generate_diarized_subtitles(
                     diarization_start, transcript_start
                 )
 
-        primary_speaker = max(cumulative_durations, key=cumulative_durations.get)
+        primary_speaker = max(cumulative_durations, key=cumulative_durations.get)  # type: ignore
 
         subtitle_element = SubtitleElement(
             start_ms=transcript_start,
@@ -80,5 +80,5 @@ def generate_diarized_subtitles(
         )
         subtitles.add_element(subtitle_element)
 
-    subtitles.join_adjacent_elements()
+    subtitles.join_adjacent_elements(max_words_per_line=max_words_per_line)
     subtitles.to_file(srt_path)

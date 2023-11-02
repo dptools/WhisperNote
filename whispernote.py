@@ -29,7 +29,7 @@ from whispernote import diarize, subtitle, transcribe
 console = Console()
 
 
-def run_parallel(args) -> Dict[str, concurrent.futures.Future]:
+def run_parallel(args, log_file: str) -> Dict[str, concurrent.futures.Future]:
     """
     Runs transcription and diarization jobs in parallel using ThreadPoolExecutor.
 
@@ -55,6 +55,8 @@ def run_parallel(args) -> Dict[str, concurrent.futures.Future]:
                 args.transcript_output,
                 "--model",
                 args.transcript_model,
+                "--log-file",
+                log_file,
             ]
             if args.language:
                 command_array.extend(["--language", args.language])
@@ -77,6 +79,8 @@ def run_parallel(args) -> Dict[str, concurrent.futures.Future]:
                 args.input,
                 "--output",
                 args.diarization_output,
+                "--log-file",
+                log_file,
             ]
             if args.speaker_count:
                 command_array.extend(["--speaker-count", str(args.speaker_count)])
@@ -98,14 +102,15 @@ def run_parallel(args) -> Dict[str, concurrent.futures.Future]:
         for key, _ in zip(
             futures.keys(), concurrent.futures.as_completed(futures.values())
         ):
-            logger.info(f"Completed {key} job for {args.input}")
+            logger.info(f"Completed 1 of {len(futures)} jobs: {key}")
 
     return futures
 
 
 def main():
     log_params = utils.config(utils.get_config_file(), "logging")
-    file_handler = logging.FileHandler(log_params["log_file"], mode="a")
+    log_file = log_params["log_file"]
+    file_handler = logging.FileHandler(log_file, mode="a")
     file_handler.setLevel(logging.DEBUG)
     file_handler.setFormatter(
         logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
@@ -191,7 +196,7 @@ def main():
     title = pyfiglet.figlet_format("WhisperNote", font="slant")
     console.print(f"[bold red]{title}")
 
-    temp_files: List[tempfile.NamedTemporaryFile] = []
+    temp_files: List[tempfile._TemporaryFileWrapper] = []
 
     if srt_output:
         if not transcript_output:
@@ -213,7 +218,7 @@ def main():
 
     if args.parallel:
         logger.info("Running processes in parallel")
-        run_parallel(args)
+        run_parallel(args, log_file=log_file)
     else:
         if transcript_output:
             logger.info(f"Running transcription for {args.input}")
@@ -240,10 +245,13 @@ def main():
 
     if srt_output:
         logger.info(f"Generating Diarized SRT file for {args.input}")
+        subtitle_params = utils.config(utils.get_config_file(), "subtitles")
+        max_words_per_line = int(subtitle_params["max_words_per_line"])
         subtitle.generate_diarized_subtitles(
             whisper_json=transcript_output,
             diarization_path=diarization_output,
             srt_path=srt_output,
+            max_words_per_line=max_words_per_line,
         )
         logger.info(f"Generated Diarized SRT at {srt_output}")
 

@@ -13,10 +13,10 @@ class Subtitles:
         self.index += 1
         self.elements.append(element)
 
-    def join_adjacent_elements(self):
+    def join_adjacent_elements(self, max_words_per_line: int = 7) -> None:
         # If speaker is the same, and the first element doesn't end with a stop symbol, join them
         stop_characters = [".", "?", "!"]
-        max_words_per_line = 7
+        max_words_per_line = max_words_per_line
 
         idx = 0
         while idx < len(self.elements) - 1:

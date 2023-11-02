@@ -2,9 +2,11 @@
 
 import sys
 from pathlib import Path
+from typing import Optional
 
 file = Path(__file__).resolve()
 parent = file.parent
+root = None
 for parent in file.parents:
     if parent.name == "WhisperNote":
         root = parent
@@ -19,6 +21,7 @@ except ValueError:
 import argparse
 import json
 import logging
+from typing import Any, Dict
 
 import pyfiglet
 import whisper
@@ -42,11 +45,11 @@ console = Console()
 
 def transcribe(
     input: str,
-    language: str = None,
+    language: Optional[str] = None,
     model: str = "base",
     word_timestamps: bool = True,
     load_model_in_memory: bool = True,
-) -> None:
+) -> Dict[str, Any]:
     """Transcribe audio file with Whisper
 
     Args:
@@ -58,12 +61,12 @@ def transcribe(
     logger.info(f"Transcribing {input} with Whisper")
 
     logger.debug(f"Loading model: '{model}'")
-    model: whisper.Whisper = whisper.load_model(model, in_memory=load_model_in_memory)
+    whisper_model: whisper.Whisper = whisper.load_model(model, in_memory=load_model_in_memory)
 
     logger.info("Starting transcription")
     logger.debug(f"language: '{language}'")
     logger.debug(f"word_timestamps: {word_timestamps}")
-    result = model.transcribe(
+    result = whisper_model.transcribe(
         input, language=language, word_timestamps=word_timestamps, verbose=False
     )
 
@@ -120,8 +123,22 @@ def main():
         help="include word timestamps in output",
         default=True,
     )
+    parser.add_argument(
+        "--log-file",
+        type=str,
+        help="log file",
+        required=False,
+    )
 
     args = parser.parse_args()
+
+    if args.log_file:
+        file_handler = logging.FileHandler(args.log_file, mode="a")
+        file_handler.setLevel(logging.DEBUG)
+        file_handler.setFormatter(
+            logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+        )
+        logging.getLogger().addHandler(file_handler)
 
     input_file = args.input
 

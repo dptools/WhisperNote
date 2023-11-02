@@ -4,23 +4,6 @@ import os
 import sys
 import logging
 
-from rich.console import Console
-from rich.logging import RichHandler
-
-
-MODULE_NAME = "utils"
-
-logger = logging.getLogger(MODULE_NAME)
-logargs = {
-    "level": logging.INFO,
-    # "format": "%(asctime)s - %(process)d - %(name)s - %(levelname)s - %(message)s",
-    "format": "%(message)s",
-    "handlers": [RichHandler(rich_tracebacks=True)],
-}
-logging.basicConfig(**logargs)
-
-console = Console()
-
 
 def config(filename: str, section: str) -> dict:
     parser = ConfigParser()
@@ -61,11 +44,57 @@ def get_config_file() -> str:
     return config_file
 
 
+def check_gpu(
+    logger: logging.Logger = logging.getLogger(__name__),
+) -> bool:
+    """
+    Checks if a GPU is available.
+
+    Returns:
+        bool: True if a GPU is available, False otherwise.
+    """
+    # Check if NVIDIA GPU is available using nvidia-smi
+    try:
+        subprocess.check_output(["nvidia-smi"])
+    except FileNotFoundError:
+        logger.info("NVIDIA GPU not detected")
+        return False
+
+    return True
+
+
+def get_free_gpu_idx() -> int:
+    """
+    Returns the index of the GPU with the most free memory.
+
+    Uses the nvidia-smi command to get the memory free and index of each GPU,
+    sorts the output by memory free in descending order, and returns the index
+    of the GPU with the most free memory.
+
+    Returns:
+        int: The index of the GPU with the most free memory.
+    """
+    output = subprocess.check_output(
+        ["nvidia-smi", "--query-gpu=memory.free,index", "--format=csv,nounits,noheader"]
+    )
+
+    lines = output.decode().split("\n")
+    lines = [line for line in lines if line]
+
+    lines.sort(key=lambda x: int(x.split(",")[0]), reverse=True)
+
+    gpu_index = lines[0].split(",")[1]
+    gpu_index = int(gpu_index)
+
+    return gpu_index
+
+
 def execute_commands(
     command_array: list,
     shell: bool = False,
     stdout=subprocess.PIPE,
     stderr=subprocess.PIPE,
+    logger: logging.Logger = logging.getLogger(__name__),
 ) -> subprocess.CompletedProcess:
     """
     Executes a command and returns the result.
@@ -106,3 +135,5 @@ def execute_commands(
         logger.error("=====================================")
         logger.error("Exit code: " + str(result.returncode))
         sys.exit(1)
+
+    return result

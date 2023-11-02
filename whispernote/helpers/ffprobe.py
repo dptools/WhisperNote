@@ -15,7 +15,7 @@ class FFProbeResult(NamedTuple):
     error: str
 
 
-def get_metadata(file_path_to_process: tuple) -> dict:
+def get_metadata(file_path_to_process: str) -> dict:
     ffprobe_result = ffprobe(file_path_to_process)
 
     if ffprobe_result.return_code != 0:
@@ -27,7 +27,7 @@ def get_metadata(file_path_to_process: tuple) -> dict:
     return metadata
 
 
-def ffprobe(file_path) -> FFProbeResult:
+def ffprobe(file_path: str) -> FFProbeResult:
     command_array = [
         "ffprobe",
         "-v",

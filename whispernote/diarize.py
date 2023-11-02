@@ -5,6 +5,7 @@ from pathlib import Path
 
 file = Path(__file__).resolve()
 parent = file.parent
+root = None
 for parent in file.parents:
     if parent.name == "WhisperNote":
         root = parent
@@ -22,6 +23,7 @@ from typing import Optional
 
 import pyfiglet
 import torchaudio
+import torch
 from pyannote.audio import Pipeline
 from pyannote.audio.pipelines.utils.hook import ProgressHook
 from pyannote.core.annotation import Annotation
@@ -56,8 +58,19 @@ def diarize(
         "pyannote/speaker-diarization", use_auth_token=hugging_face_key
     )
 
+    # send pipeline to GPU (when available)
+    if torch.cuda.is_available():
+        gpu_idx = utils.get_free_gpu_idx()
+        device = torch.device(f"cuda:{gpu_idx}")
+        logger.info(f"Sending pipeline to GPU {gpu_idx}")
+    else:
+        device = torch.device("cpu")
+        logger.info("Sending pipeline to CPU")
+
+    pipeline.to(device)
+
     logger.info("Loading audio file")
-    waveform, sample_rate = torchaudio.load(audio_path)
+    waveform, sample_rate = torchaudio.load(audio_path)  # type: ignore
 
     logger.info("Diarizing audio file")
     with ProgressHook() as hook:
@@ -94,7 +107,7 @@ def write_output(output: str, diarization: Annotation) -> None:
         diarization (pyannote.core.SlidingWindowFeature): result of diarization
     """
     with open(output, "w") as text_file:
-        for segment, _, label in diarization.itertracks(yield_label=True):
+        for segment, _, label in diarization.itertracks(yield_label=True):  # type: ignore
             speaker = label
             start, end, _ = segment.start, segment.end, segment.duration
 
@@ -136,8 +149,22 @@ def main():
         help="maximum number of speakers, if known",
         required=False,
     )
+    parser.add_argument(
+        "--log-file",
+        type=str,
+        help="log file",
+        required=False,
+    )
 
     args = parser.parse_args()
+
+    if args.log_file:
+        file_handler = logging.FileHandler(args.log_file, mode="a")
+        file_handler.setLevel(logging.DEBUG)
+        file_handler.setFormatter(
+            logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+        )
+        logging.getLogger().addHandler(file_handler)
 
     title = pyfiglet.figlet_format("WhisperNote", font="slant")
     console.print(f"[bold red]{title}")
