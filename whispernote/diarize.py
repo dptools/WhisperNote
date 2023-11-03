@@ -120,13 +120,19 @@ def write_output(output: str, diarization: Annotation) -> None:
 def get_huggingface_key():
     """Get HuggingFace API key from config file"""
     config_path = utils.get_config_file()
-    params = utils.config(config_path, section="huggingface")
+    params = utils.config(config_path, section="whispernote")
 
-    if "api_key" not in params:
-        logger.error("HuggingFace API key not found in config file")
-        raise Exception("HuggingFace API key not found in config file")
+    if "huggingface_api_key_file" not in params:
+        logger.error("HuggingFace API key file not found in config file")
+        raise Exception("HuggingFace API key file not found in config file")
 
-    return params["api_key"]
+    hugging_face_key_file = params["huggingface_api_key_file"]
+    logger.debug(f"HuggingFace API key file: {hugging_face_key_file}")
+
+    with open(hugging_face_key_file, "r") as key_file:
+        hugging_face_key = key_file.read().strip()
+
+    return hugging_face_key
 
 
 def main():

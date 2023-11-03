@@ -1,16 +1,39 @@
 #!/usr/bin/env python
-import argparse
-import concurrent.futures
-import logging
-import os
-import subprocess
-import sys
-import tempfile
-from typing import Dict, List, Optional
-
-import pyfiglet
 from rich.console import Console
-from rich.logging import RichHandler
+console = Console()
+
+with console.status("[green]Loading...") as status:
+    import sys
+    from pathlib import Path
+
+    file = Path(__file__).resolve()
+    parent = file.parent
+    root = None
+    for parent in file.parents:
+        if parent.name == "WhisperNote":
+            root = parent
+    sys.path.append(str(root))
+
+    # remove current directory from path
+    try:
+        sys.path.remove(str(parent))
+    except ValueError:
+        pass
+
+    status.update("[bold green]Importing modules...")
+    import argparse
+    import concurrent.futures
+    import logging
+    import os
+    import subprocess
+    import tempfile
+    from typing import Dict, List, Optional
+
+    import pyfiglet
+    from rich.logging import RichHandler
+
+    import whispernote.helpers.utils as utils
+    from whispernote import diarize, subtitle, transcribe
 
 MODULE_NAME = "whispernote"
 
@@ -23,11 +46,6 @@ logargs = {
 }
 logging.basicConfig(**logargs)
 
-import whispernote.helpers.utils as utils
-from whispernote import diarize, subtitle, transcribe
-
-console = Console()
-
 
 def run_parallel(args, log_file: str) -> Dict[str, concurrent.futures.Future]:
     """
@@ -39,7 +57,7 @@ def run_parallel(args, log_file: str) -> Dict[str, concurrent.futures.Future]:
     Returns:
         A dictionary containing the futures of the transcription and diarization tasks.
     """
-    futures = dict()
+    futures: Dict[str, concurrent.futures.Future] = {}
     with concurrent.futures.ThreadPoolExecutor(
         max_workers=4, thread_name_prefix="whispernote"
     ) as executor:
@@ -99,10 +117,11 @@ def run_parallel(args, log_file: str) -> Dict[str, concurrent.futures.Future]:
             futures["diarization"] = diarization_task
 
         # Run the processes
-        for key, _ in zip(
-            futures.keys(), concurrent.futures.as_completed(futures.values())
-        ):
-            logger.info(f"Completed 1 of {len(futures)} jobs: {key}")
+        tasks_completed = 0
+        for task in concurrent.futures.as_completed(futures.values()):
+            tasks_completed += 1
+            task_name = [k for k, v in futures.items() if v == task][0]
+            logger.info(f"Completed {tasks_completed} of {len(futures)} tasks: {task_name}")
 
     return futures
 
@@ -156,7 +175,7 @@ def run_whispernote(
 
 def main():
     log_params = utils.config(utils.get_config_file(), "logging")
-    log_file = log_params["log_file"]
+    log_file = log_params[MODULE_NAME]
     file_handler = logging.FileHandler(log_file, mode="a")
     file_handler.setLevel(logging.DEBUG)
     file_handler.setFormatter(
@@ -264,7 +283,7 @@ def main():
             temp_files.append(temp_file)
 
     if args.parallel:
-        logger.info("Running processes in parallel")
+        logger.info("Running transcription and diarization in parallel")
         run_parallel(args, log_file=log_file)
     else:
         if transcript_output:
@@ -292,13 +311,15 @@ def main():
 
     if srt_output:
         logger.info(f"Generating Diarized SRT file for {args.input}")
-        subtitle_params = utils.config(utils.get_config_file(), "subtitles")
-        max_words_per_line = int(subtitle_params["max_words_per_line"])
+        params = utils.config(utils.get_config_file(), "whispernote")
+        subtitle_max_words_per_line = int(params["subtitle_max_words_per_line"])
+        logger.info(f"Max words per subtitle line: {subtitle_max_words_per_line}")
+
         subtitle.generate_diarized_subtitles(
             whisper_json=transcript_output,
             diarization_path=diarization_output,
             srt_path=srt_output,
-            max_words_per_line=max_words_per_line,
+            max_words_per_line=subtitle_max_words_per_line,
         )
         logger.info(f"Generated Diarized SRT at {srt_output}")
 
