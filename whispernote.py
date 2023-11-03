@@ -6,7 +6,7 @@ import os
 import subprocess
 import sys
 import tempfile
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 import pyfiglet
 from rich.console import Console
@@ -105,6 +105,53 @@ def run_parallel(args, log_file: str) -> Dict[str, concurrent.futures.Future]:
             logger.info(f"Completed 1 of {len(futures)} jobs: {key}")
 
     return futures
+
+
+def run_whispernote(
+    audio_input: str,
+    transcript_output: str,
+    diarization_output: str,
+    srt_output: str,
+    transcript_model: str,
+    language: Optional[str] = None,
+    speaker_count: Optional[int] = None,
+    min_speakers: Optional[int] = None,
+    max_speakers: Optional[int] = None,
+):
+    if transcript_output:
+        logger.info(f"Running transcription for {audio_input}")
+        transcript = transcribe.transcribe(
+            input=audio_input,
+            model=transcript_model,
+            language=language,
+        )
+        transcribe.write_output(transcript_output, transcript)
+        logger.info(f"Generated transcript output at {transcript_output}")
+
+    if diarization_output:
+        logger.info(f"Running diarization for {audio_input}")
+        hugging_face_key = diarize.get_huggingface_key()
+        diarization = diarize.diarize(
+            audio_path=audio_input,
+            hugging_face_key=hugging_face_key,
+            speaker_count=speaker_count,
+            min_speakers=min_speakers,
+            max_speakers=max_speakers,
+        )
+        diarize.write_output(diarization_output, diarization)
+        logger.info(f"Generated Diarization output at {diarization_output}")
+
+    if srt_output:
+        logger.info(f"Generating Diarized SRT file for {audio_input}")
+        subtitle_params = utils.config(utils.get_config_file(), "subtitles")
+        max_words_per_line = int(subtitle_params["max_words_per_line"])
+        subtitle.generate_diarized_subtitles(
+            whisper_json=transcript_output,
+            diarization_path=diarization_output,
+            srt_path=srt_output,
+            max_words_per_line=max_words_per_line,
+        )
+        logger.info(f"Generated Diarized SRT at {srt_output}")
 
 
 def main():
