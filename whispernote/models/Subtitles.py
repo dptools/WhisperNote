@@ -4,9 +4,20 @@ from whispernote.models.SubtitleElement import SubtitleElement
 
 
 class Subtitles:
-    def __init__(self) -> None:
+    def __init__(self, display_mode: str = "srt") -> None:
         self.index = 0
         self.elements: List[SubtitleElement] = []
+        self._display_mode = display_mode
+
+    @property
+    def display_mode(self) -> str:
+        return self._display_mode
+
+    @display_mode.setter
+    def display_mode(self, value: str) -> None:
+        self._display_mode = value
+        for element in self.elements:
+            element.display_mode = value
 
     def add_element(self, element: SubtitleElement) -> None:
         element.index = self.index
@@ -44,5 +55,15 @@ class Subtitles:
         return self.__str__()
 
     def to_file(self, path: str) -> None:
+        match self.display_mode:
+            case "srt":
+                for element in self.elements:
+                    element.display_mode = "srt"
+            case "transcribeMe":
+                for element in self.elements:
+                    element.display_mode = "transcribeMe"
+            case _:
+                pass
+
         with open(path, "w") as text_file:
             text_file.write(str(self))

@@ -1,6 +1,7 @@
+import copy
 import json
 from io import StringIO
-from typing import Dict
+from typing import Dict, Optional, List
 
 from whispernote.models.SubtitleElement import SubtitleElement
 from whispernote.models.Subtitles import Subtitles
@@ -28,8 +29,12 @@ def process_whisper_transcript(whisper_json: str) -> str:
 
 
 def generate_diarized_subtitles(
-    whisper_json: str, diarization_path: str, srt_path: str, max_words_per_line: int = 7
-) -> None:
+    whisper_json: str,
+    diarization_path: str,
+    srt_path: str,
+    transcribeMe_path: Optional[str] = None,
+    max_words_per_line: int = 7,
+) -> List[str]:
     transcript = process_whisper_transcript(whisper_json).strip().split("\n")
     diarization = open(diarization_path).read().strip().split("\n")
 
@@ -80,5 +85,18 @@ def generate_diarized_subtitles(
         )
         subtitles.add_element(subtitle_element)
 
-    subtitles.join_adjacent_elements(max_words_per_line=max_words_per_line)
-    subtitles.to_file(srt_path)
+    subtitles_srt = copy.deepcopy(subtitles)
+
+    subtitles_srt.join_adjacent_elements()
+    subtitles_srt.to_file(srt_path)
+
+    if transcribeMe_path is None:
+        return [srt_path]
+
+    subtitles_transcribeMe = copy.deepcopy(subtitles)
+    subtitles_transcribeMe.display_mode = "transcribeMe"
+
+    subtitles_transcribeMe.join_adjacent_elements()
+    subtitles_transcribeMe.to_file(transcribeMe_path)
+
+    return [srt_path, transcribeMe_path]
