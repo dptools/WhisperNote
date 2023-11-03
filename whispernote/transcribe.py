@@ -29,6 +29,8 @@ from whispernote.helpers import ffprobe
 from rich.console import Console
 from rich.logging import RichHandler
 
+import whispernote.helpers.utils as utils
+
 MODULE_NAME = "transcribe"
 
 logger = logging.getLogger(MODULE_NAME)
@@ -47,6 +49,8 @@ def transcribe(
     input: str,
     language: Optional[str] = None,
     model: str = "base",
+    beam_size: Optional[int] = None,
+    condition_on_previous_text: bool = True,
     word_timestamps: bool = True,
     load_model_in_memory: bool = True,
 ) -> Dict[str, Any]:
@@ -60,14 +64,28 @@ def transcribe(
     """
     logger.info(f"Transcribing {input} with Whisper")
 
-    logger.debug(f"Loading model: '{model}'")
-    whisper_model: whisper.Whisper = whisper.load_model(model, in_memory=load_model_in_memory)
+    if utils.check_gpu():
+        gpu_idx = utils.get_free_gpu_idx()
+        device = f"cuda:{gpu_idx}"
+        logger.info(f"Sending transcription model to GPU {gpu_idx}")
+    else:
+        device = "cpu"
+        logger.info("Sending transcription model to CPU")
+    logger.info(f"Loading transcription model: '{model}'")
+    whisper_model: whisper.Whisper = whisper.load_model(
+        model, in_memory=load_model_in_memory, device=device
+    )
 
     logger.info("Starting transcription")
     logger.debug(f"language: '{language}'")
     logger.debug(f"word_timestamps: {word_timestamps}")
     result = whisper_model.transcribe(
-        input, language=language, word_timestamps=word_timestamps, verbose=False
+        input,
+        language=language,
+        word_timestamps=word_timestamps,
+        verbose=False,
+        beam_size=beam_size,
+        condition_on_previous_text=condition_on_previous_text,
     )
 
     logger.info("Transcription complete")
@@ -129,6 +147,18 @@ def main():
         help="log file",
         required=False,
     )
+    parser.add_argument(
+        "--condition-on-previous-text",
+        type=bool,
+        help="condition on previous text. False helps prevent the model from repeating itself.",
+        default=True,
+    )
+    parser.add_argument(
+        "--beam-size",
+        type=int,
+        help="beam size",
+        required=False,
+    )
 
     args = parser.parse_args()
 
@@ -159,6 +189,8 @@ def main():
         language=args.language,
         model=args.model,
         word_timestamps=args.word_timestamps,
+        condition_on_previous_text=args.condition_on_previous_text,
+        beam_size=args.beam_size,
     )
 
     write_output(args.output, results)

@@ -75,6 +75,10 @@ def run_parallel(args, log_file: str) -> Dict[str, concurrent.futures.Future]:
                 args.transcript_model,
                 "--log-file",
                 log_file,
+                "--condition-on-previous-text",
+                str(args.condition_on_previous_text),
+                "--beam-size",
+                str(args.beam_size),
             ]
             if args.language:
                 command_array.extend(["--language", args.language])
@@ -241,6 +245,13 @@ def main():
     )
 
     args = parser.parse_args()
+    params = utils.config(utils.get_config_file(), "whispernote")
+    args.condition_on_previous_text = params["condition_on_previous_text"]
+    if args.condition_on_previous_text == "True" or args.condition_on_previous_text == "true":
+        args.condition_on_previous_text = True
+    else:
+        args.condition_on_previous_text = False
+    args.beam_size = int(params["beam_size"])
 
     # Check what outputs are requested
     transcript_output = args.transcript_output
@@ -292,6 +303,8 @@ def main():
                 input=args.input,
                 model=args.transcript_model,
                 language=args.language,
+                condition_on_previous_text=args.condition_on_previous_text,
+                beam_size=args.beam_size,
             )
             transcribe.write_output(transcript_output, transcript)
             logger.info(f"Generated transcript output at {transcript_output}")
@@ -311,7 +324,6 @@ def main():
 
     if srt_output:
         logger.info(f"Generating Diarized SRT file for {args.input}")
-        params = utils.config(utils.get_config_file(), "whispernote")
         subtitle_max_words_per_line = int(params["subtitle_max_words_per_line"])
         logger.info(f"Max words per subtitle line: {subtitle_max_words_per_line}")
 
