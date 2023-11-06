@@ -357,14 +357,6 @@ def main():
         logger.info(f"Generated Diarized SRT at {srt_output}")
         logger.info(f"Generated Diarized TranscribeMe at {transcribeme_output}")
 
-        # subtitle.generate_diarized_subtitles(
-        #     whisper_json=transcript_output,
-        #     diarization_path=diarization_output,
-        #     srt_path=srt_output,
-        #     max_words_per_line=subtitle_max_words_per_line,
-        # )
-        # logger.info(f"Generated Diarized SRT at {srt_output}")
-
     for temp_file in temp_files:
         logger.debug(f"Deleting temp file {temp_file.name}")
         temp_file.close()
