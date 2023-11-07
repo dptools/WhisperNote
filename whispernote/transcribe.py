@@ -4,6 +4,8 @@ import sys
 from pathlib import Path
 from typing import Optional
 
+import torch
+
 file = Path(__file__).resolve()
 parent = file.parent
 root = None
@@ -53,6 +55,7 @@ def transcribe(
     condition_on_previous_text: bool = True,
     word_timestamps: bool = True,
     load_model_in_memory: bool = True,
+    threads: int = 8,
 ) -> Dict[str, Any]:
     """Transcribe audio file with Whisper
 
@@ -71,6 +74,7 @@ def transcribe(
     else:
         device = "cpu"
         logger.info("Sending transcription model to CPU")
+        torch.set_num_threads(threads)
     logger.info(f"Loading transcription model: '{model}'")
     whisper_model: whisper.Whisper = whisper.load_model(
         model, in_memory=load_model_in_memory, device=device

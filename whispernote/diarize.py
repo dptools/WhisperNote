@@ -52,6 +52,7 @@ def diarize(
     speaker_count: Optional[int] = None,
     min_speakers: Optional[int] = None,
     max_speakers: Optional[int] = None,
+    threads: int = 8,
 ) -> Annotation:
     logger.info("Loading speaker diarization model from HuggingFace")
     pipeline = Pipeline.from_pretrained(
@@ -66,6 +67,7 @@ def diarize(
     else:
         device = torch.device("cpu")
         logger.info("Sending pipeline to CPU")
+        torch.set_num_threads(threads)
 
     pipeline.to(device)
 

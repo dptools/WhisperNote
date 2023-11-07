@@ -96,7 +96,7 @@ def generate_diarized_subtitles(
     subtitles_transcribeMe = copy.deepcopy(subtitles)
     subtitles_transcribeMe.display_mode = "transcribeMe"
 
-    subtitles_transcribeMe.join_adjacent_elements()
+    subtitles_transcribeMe.join_adjacent_elements(max_words_per_line=max_words_per_line)
     subtitles_transcribeMe.to_file(transcribeMe_path)
 
     return [srt_path, transcribeMe_path]
