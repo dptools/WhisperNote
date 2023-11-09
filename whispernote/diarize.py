@@ -45,20 +45,15 @@ logging.basicConfig(**logargs)
 
 console = Console()
 
+pipeline: Pipeline = None  # type: ignore
 
-def diarize(
-    audio_path: str,
-    hugging_face_key: str,
-    speaker_count: Optional[int] = None,
-    min_speakers: Optional[int] = None,
-    max_speakers: Optional[int] = None,
-    threads: int = 8,
-) -> Annotation:
+
+def load_model(hugging_face_key: str, threads: int = 8):
+    global pipeline
     logger.info("Loading speaker diarization model from HuggingFace")
     pipeline = Pipeline.from_pretrained(
         "pyannote/speaker-diarization", use_auth_token=hugging_face_key
     )
-
     # send pipeline to GPU (when available)
     if torch.cuda.is_available():
         gpu_idx = utils.get_free_gpu_idx()
@@ -70,6 +65,35 @@ def diarize(
         torch.set_num_threads(threads)
 
     pipeline.to(device)
+
+
+def diarize(
+    audio_path: str,
+    hugging_face_key: str,
+    speaker_count: Optional[int] = None,
+    min_speakers: Optional[int] = None,
+    max_speakers: Optional[int] = None,
+    threads: int = 8,
+) -> Annotation:
+    # logger.info("Loading speaker diarization model from HuggingFace")
+    # pipeline = Pipeline.from_pretrained(
+    #     "pyannote/speaker-diarization", use_auth_token=hugging_face_key
+    # )
+
+    # # send pipeline to GPU (when available)
+    # if torch.cuda.is_available():
+    #     gpu_idx = utils.get_free_gpu_idx()
+    #     device = torch.device(f"cuda:{gpu_idx}")
+    #     logger.info(f"Sending pipeline to GPU {gpu_idx}")
+    # else:
+    #     device = torch.device("cpu")
+    #     logger.info("Sending pipeline to CPU")
+    #     torch.set_num_threads(threads)
+
+    # pipeline.to(device)
+
+    if pipeline is None:
+        load_model(hugging_face_key, threads)
 
     logger.info("Loading audio file")
     waveform, sample_rate = torchaudio.load(audio_path)  # type: ignore

@@ -46,6 +46,29 @@ logging.basicConfig(**logargs)
 
 console = Console()
 
+whisper_model: whisper.Whisper = None  # type: ignore
+
+
+def load_model(
+    model: str, in_memory: bool = True, force_cpu: bool = False, threads: int = 8
+):
+    global whisper_model
+    if force_cpu:
+        device = "cpu"
+        logger.info("Sending transcription model to CPU (Overridden)")
+        torch.set_num_threads(threads)
+    else:
+        if utils.check_gpu():
+            gpu_idx = utils.get_free_gpu_idx()
+            device = f"cuda:{gpu_idx}"
+            logger.info(f"Sending transcription model to GPU {gpu_idx}")
+        else:
+            device = "cpu"
+            logger.info("Sending transcription model to CPU")
+            torch.set_num_threads(threads)
+    logger.info(f"Loading transcription model: '{model}'")
+    whisper_model = whisper.load_model(model, in_memory=in_memory, device=device)
+
 
 def transcribe(
     input: str,
@@ -55,6 +78,7 @@ def transcribe(
     condition_on_previous_text: bool = True,
     word_timestamps: bool = True,
     load_model_in_memory: bool = True,
+    force_cpu: bool = False,
     threads: int = 8,
 ) -> Dict[str, Any]:
     """Transcribe audio file with Whisper
@@ -67,22 +91,13 @@ def transcribe(
     """
     logger.info(f"Transcribing {input} with Whisper")
 
-    if utils.check_gpu():
-        gpu_idx = utils.get_free_gpu_idx()
-        device = f"cuda:{gpu_idx}"
-        logger.info(f"Sending transcription model to GPU {gpu_idx}")
-    else:
-        device = "cpu"
-        logger.info("Sending transcription model to CPU")
-        torch.set_num_threads(threads)
-    logger.info(f"Loading transcription model: '{model}'")
-    whisper_model: whisper.Whisper = whisper.load_model(
-        model, in_memory=load_model_in_memory, device=device
-    )
-
     logger.info("Starting transcription")
     logger.debug(f"language: '{language}'")
     logger.debug(f"word_timestamps: {word_timestamps}")
+
+    global whisper_model
+    if whisper_model is None:
+        load_model(model, in_memory=load_model_in_memory, threads=threads, force_cpu=force_cpu)
     result = whisper_model.transcribe(
         input,
         language=language,
