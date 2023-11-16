@@ -167,9 +167,7 @@ def process_combined_transcript_diarization(
     return df
 
 
-def generate_diarized_subtitles(
-    whisper_json: str, diarization_path: str, srt_path: str, max_words_per_line: int = 7
-) -> None:
+def construct_diarised_subtitles(whisper_json: str, diarization_path: str) -> Subtitles:
     diarized_transcript_df = combine_transcript_diarization(
         whisper_json_path=whisper_json,
         diarization_csv_path=diarization_path,
@@ -181,7 +179,7 @@ def generate_diarized_subtitles(
 
     subtitles = Subtitles()
 
-    for idx, row in diarized_transcript_df.iterrows():
+    for _, row in diarized_transcript_df.iterrows():
         subtitle_element = SubtitleElement(
             start_ms=row["start"],
             end_ms=row["end"],
@@ -189,6 +187,16 @@ def generate_diarized_subtitles(
             speaker=row["speaker"],
         )
         subtitles.add_element(subtitle_element)
+
+    return subtitles
+
+
+def generate_diarized_subtitles(
+    whisper_json: str, diarization_path: str, srt_path: str, max_words_per_line: int = 7
+) -> None:
+    subtitles = construct_diarised_subtitles(
+        whisper_json=whisper_json, diarization_path=diarization_path
+    )
 
     subtitles.join_adjacent_elements(max_words_per_line=max_words_per_line)
     subtitles.to_file(srt_path)
