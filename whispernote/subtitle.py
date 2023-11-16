@@ -19,7 +19,7 @@ import argparse
 import copy
 import json
 from io import StringIO
-from typing import Dict, Optional, List
+from typing import Dict, Optional, List, Any
 
 import pandas as pd
 
@@ -191,6 +191,7 @@ def construct_diarised_subtitles(whisper_json: str, diarization_path: str) -> Su
 
     return subtitles
 
+
 def generate_diarized_subtitles(
     whisper_json: str,
     diarization_path: str,
@@ -201,7 +202,7 @@ def generate_diarized_subtitles(
     subtitles = construct_diarised_subtitles(
         whisper_json=whisper_json, diarization_path=diarization_path
     )
-    
+
     subtitles_srt = copy.deepcopy(subtitles)
 
     subtitles_srt.join_adjacent_elements(max_words_per_line=max_words_per_line)
