@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 from rich.console import Console
+
 console = Console()
 
 with console.status("[green]Loading...") as status:
@@ -66,7 +67,7 @@ def run_parallel(args, log_file: str) -> Dict[str, concurrent.futures.Future]:
 
             command_array = [
                 "python",
-                os.path.join(utils.get_repo_root(), "whispernote", "transcribe.py"),
+                os.path.join(utils.get_repo_root(), "WhisperNote", "whispernote", "transcribe.py"),
                 "--input",
                 args.input,
                 "--output",
@@ -96,7 +97,7 @@ def run_parallel(args, log_file: str) -> Dict[str, concurrent.futures.Future]:
             logger.info(f"Submitting diarization job for {args.input}")
             command_array = [
                 "python",
-                os.path.join(utils.get_repo_root(), "whispernote", "diarize.py"),
+                os.path.join(utils.get_repo_root(), "WhisperNote", "whispernote", "diarize.py"),
                 "--input",
                 args.input,
                 "--output",
@@ -125,7 +126,9 @@ def run_parallel(args, log_file: str) -> Dict[str, concurrent.futures.Future]:
         for task in concurrent.futures.as_completed(futures.values()):
             tasks_completed += 1
             task_name = [k for k, v in futures.items() if v == task][0]
-            logger.info(f"Completed {tasks_completed} of {len(futures)} tasks: {task_name}")
+            logger.info(
+                f"Completed {tasks_completed} of {len(futures)} tasks: {task_name}"
+            )
 
     return futures
 
@@ -216,6 +219,12 @@ def main():
         required=False,
     )
     parser.add_argument(
+        "--transcribeme-output",
+        type=str,
+        help="output file with transcribeMe style file generated from transcript, and diarization (TXT)",
+        required=False,
+    )
+    parser.add_argument(
         "--transcript-model",
         type=str,
         help="model to use for transcription",
@@ -247,7 +256,10 @@ def main():
     args = parser.parse_args()
     params = utils.config(utils.get_config_file(), "whispernote")
     args.condition_on_previous_text = params["condition_on_previous_text"]
-    if args.condition_on_previous_text == "True" or args.condition_on_previous_text == "true":
+    if (
+        args.condition_on_previous_text == "True"
+        or args.condition_on_previous_text == "true"
+    ):
         args.condition_on_previous_text = True
     else:
         args.condition_on_previous_text = False
@@ -324,16 +336,26 @@ def main():
 
     if srt_output:
         logger.info(f"Generating Diarized SRT file for {args.input}")
+        transcribeme_output = args.transcribeme_output
         subtitle_max_words_per_line = int(params["subtitle_max_words_per_line"])
         logger.info(f"Max words per subtitle line: {subtitle_max_words_per_line}")
-
+        if not transcribeme_output:
+            logger.info(
+                "SRT output requested, but transcribeMe output not requested. Using temp file"
+            )
+            temp_file = tempfile.NamedTemporaryFile(suffix=".txt")
+            transcribeme_output = temp_file.name
+            logger.debug(f"Using temp file {transcribeme_output}")
+            temp_files.append(temp_file)
         subtitle.generate_diarized_subtitles(
             whisper_json=transcript_output,
             diarization_path=diarization_output,
             srt_path=srt_output,
+            transcribeMe_path=transcribeme_output,
             max_words_per_line=subtitle_max_words_per_line,
         )
         logger.info(f"Generated Diarized SRT at {srt_output}")
+        logger.info(f"Generated Diarized TranscribeMe at {transcribeme_output}")
 
     for temp_file in temp_files:
         logger.debug(f"Deleting temp file {temp_file.name}")

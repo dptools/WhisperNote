@@ -4,6 +4,8 @@ import os
 import sys
 import logging
 
+BLACKLISTED_GPU_IDS = []
+
 
 def config(filename: str, section: str) -> dict:
     parser = ConfigParser()
@@ -67,26 +69,33 @@ def get_free_gpu_idx() -> int:
     """
     Returns the index of the GPU with the most free memory.
 
-    Uses the nvidia-smi command to get the memory free and index of each GPU,
-    sorts the output by memory free in descending order, and returns the index
-    of the GPU with the most free memory.
+    Uses the nvidia-smi command to get the memory usage of each GPU and returns the
+    index of the GPU with the most free memory.
 
     Returns:
-        int: The index of the GPU with the most free memory.
+        str: The index of the GPU with the most free memory.
     """
+    # Get the output of nvidia-smi command as a string
     output = subprocess.check_output(
         ["nvidia-smi", "--query-gpu=memory.free,index", "--format=csv,nounits,noheader"]
     )
 
+    # Split the output by newline and sort by memory free in descending order
     lines = output.decode().split("\n")
+
+    # Remove empty string
     lines = [line for line in lines if line]
 
     lines.sort(key=lambda x: int(x.split(",")[0]), reverse=True)
 
+    # Get the index of the GPU with the most free memory
     gpu_index = lines[0].split(",")[1]
-    gpu_index = int(gpu_index)
 
-    return gpu_index
+    # Check if GPU is blacklisted
+    if int(gpu_index) in BLACKLISTED_GPU_IDS:
+        gpu_index = lines[1].split(",")[1]
+
+    return int(gpu_index)
 
 
 def execute_commands(
