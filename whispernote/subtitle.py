@@ -132,7 +132,7 @@ def transcript_json_to_df(transcript_json: Dict[str, Any]) -> pd.DataFrame:
 def combine_transcript_diarization(
     whisper_json_path: str,
     diarization_csv_path: str,
-):
+) -> pd.DataFrame:
     transcript_json = merge_transcript_json(whisper_json_path=whisper_json_path)
     transcript_df = transcript_json_to_df(transcript_json=transcript_json)
     diarization_df = get_diarization_df(diarization_path=diarization_csv_path)
