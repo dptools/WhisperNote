@@ -1,1 +1,3 @@
-# init file for module
+"""
+Contains helper functions for the WhisperNote application
+"""

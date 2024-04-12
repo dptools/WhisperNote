@@ -1,18 +1,18 @@
 #!/usr/bin/env python
+"""
+Transcribe audio file with Whisper.
+"""
 
 import sys
 from pathlib import Path
-from typing import Optional
-
-import torch
 
 file = Path(__file__).resolve()
 parent = file.parent
-root = None
+ROOT = None
 for parent in file.parents:
     if parent.name == "WhisperNote":
-        root = parent
-sys.path.append(str(root))
+        ROOT = parent
+sys.path.append(str(ROOT))
 
 # remove current directory from path
 try:
@@ -23,15 +23,16 @@ except ValueError:
 import argparse
 import json
 import logging
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 import pyfiglet
+import torch
 import whisper
-from whispernote.helpers import ffprobe
 from rich.console import Console
 from rich.logging import RichHandler
 
 import whispernote.helpers.utils as utils
+from whispernote.helpers import ffprobe
 
 MODULE_NAME = "transcribe"
 
@@ -51,8 +52,20 @@ whisper_model: whisper.Whisper = None  # type: ignore
 
 def load_model(
     model: str, in_memory: bool = True, force_cpu: bool = False, threads: int = 8
-):
-    global whisper_model
+) -> whisper.Whisper:
+    """
+    Loads model to memory. Sends model to GPU if available, falls back to CPU if not.
+
+    Args:
+        model (str): model to load
+        in_memory (bool): load model in memory
+        force_cpu (bool): force model to CPU
+        threads (int): number of threads to use
+
+    Returns:
+        whisper.Whisper: Whisper model
+    """
+    global whisper_model  # pylint: disable=global-statement
     if force_cpu:
         device = "cpu"
         logger.info("Sending transcription model to CPU (Overridden)")
@@ -68,10 +81,11 @@ def load_model(
             torch.set_num_threads(threads)
     logger.info(f"Loading transcription model: '{model}'")
     whisper_model = whisper.load_model(model, in_memory=in_memory, device=device)
+    return whisper_model
 
 
 def transcribe(
-    input: str,
+    input_audio_file_path: str,
     language: Optional[str] = None,
     model: str = "base",
     beam_size: Optional[int] = None,
@@ -84,22 +98,27 @@ def transcribe(
     """Transcribe audio file with Whisper
 
     Args:
-        input (str): input audio file
+        input_audio_file_path (str): input audio file
         language (str, optional): language of the audio file, if known. Defaults to None.
         model (str, optional): model to use for transcription. Defaults to "base".
         word_timestamps (bool, optional): include word timestamps in output. Defaults to False.
+
+    Returns:
+        Dict[str, Any]: result of transcription as a JSON object
     """
-    logger.info(f"Transcribing {input} with Whisper")
+    logger.info(f"Transcribing {input_audio_file_path} with Whisper")
 
     logger.info("Starting transcription")
     logger.debug(f"language: '{language}'")
     logger.debug(f"word_timestamps: {word_timestamps}")
 
-    global whisper_model
+    global whisper_model  # pylint: disable=global-statement
     if whisper_model is None:
-        load_model(model, in_memory=load_model_in_memory, threads=threads, force_cpu=force_cpu)
+        load_model(
+            model, in_memory=load_model_in_memory, threads=threads, force_cpu=force_cpu
+        )
     result = whisper_model.transcribe(
-        input,
+        input_audio_file_path,
         language=language,
         word_timestamps=word_timestamps,
         verbose=False,
@@ -119,7 +138,7 @@ def write_output(output: str, result: dict) -> None:
         result (dict): result of transcription
     """
     logger.info(f"Writing output to {output}")
-    with open(output, "w") as output_file:
+    with open(output, "w", encoding="utf-8") as output_file:
         json.dump(result, output_file, indent=4)
 
 
@@ -133,7 +152,7 @@ def print_duration(input_file: str):
     Returns:
         None
     """
-    metadata = ffprobe.get_metadata(input_file)
+    metadata = ffprobe.get_metadata(Path(input_file))
     duration = metadata["format"]["duration"]
     duration = float(duration)
     logger.debug(f"Duration of input file is {duration:.2f} seconds")
@@ -204,7 +223,7 @@ def main():
     print_duration(input_file)
 
     results = transcribe(
-        input=args.input,
+        input_audio_file_path=args.input,
         language=args.language,
         model=args.model,
         word_timestamps=args.word_timestamps,

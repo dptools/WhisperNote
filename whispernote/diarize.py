@@ -1,15 +1,18 @@
 #!/usr/bin/env python
+"""
+Diarize audio file using pyannote speaker diarization model.
+"""
 
 import sys
 from pathlib import Path
 
 file = Path(__file__).resolve()
 parent = file.parent
-root = None
+ROOT = None
 for parent in file.parents:
     if parent.name == "WhisperNote":
-        root = parent
-sys.path.append(str(root))
+        ROOT = parent
+sys.path.append(str(ROOT))
 
 # remove current directory from path
 try:
@@ -48,8 +51,18 @@ console = Console()
 pipeline: Pipeline = None  # type: ignore
 
 
-def load_model(hugging_face_key: str, threads: int = 8):
-    global pipeline
+def load_model(hugging_face_key: str, threads: int = 8) -> None:
+    """
+    Loads model to memory. Sends model to GPU if available, falls back to CPU if not.
+
+    Args:
+        hugging_face_key (str): HuggingFace API key
+        threads (int): number of threads to use
+
+    Returns:
+        None
+    """
+    global pipeline  # pylint: disable=global-statement
     logger.info("Loading speaker diarization model from HuggingFace")
     pipeline = Pipeline.from_pretrained(
         "pyannote/speaker-diarization", use_auth_token=hugging_face_key
@@ -75,23 +88,21 @@ def diarize(
     max_speakers: Optional[int] = None,
     threads: int = 8,
 ) -> Annotation:
-    # logger.info("Loading speaker diarization model from HuggingFace")
-    # pipeline = Pipeline.from_pretrained(
-    #     "pyannote/speaker-diarization", use_auth_token=hugging_face_key
-    # )
+    """
+    Diarize audio file. Returns result of diarization as Annotation object,
+    use write_output to write to file.
 
-    # # send pipeline to GPU (when available)
-    # if torch.cuda.is_available():
-    #     gpu_idx = utils.get_free_gpu_idx()
-    #     device = torch.device(f"cuda:{gpu_idx}")
-    #     logger.info(f"Sending pipeline to GPU {gpu_idx}")
-    # else:
-    #     device = torch.device("cpu")
-    #     logger.info("Sending pipeline to CPU")
-    #     torch.set_num_threads(threads)
+    Args:
+        audio_path (str): path to audio file
+        hugging_face_key (str): HuggingFace API key
+        speaker_count (int): number of speakers, if known
+        min_speakers (int): minimum number of speakers, if known
+        max_speakers (int): maximum number of speakers, if known
+        threads (int): number of threads to use
 
-    # pipeline.to(device)
-
+    Returns:
+        pyannote.core.Annotation: result of diarization
+    """
     if pipeline is None:
         load_model(hugging_face_key, threads)
 
@@ -131,8 +142,11 @@ def write_output(output: str, diarization: Annotation) -> None:
     Args:
         output (str): output file
         diarization (pyannote.core.SlidingWindowFeature): result of diarization
+
+    Returns:
+        None
     """
-    with open(output, "w") as text_file:
+    with open(output, "w", encoding="utf-8") as text_file:
         for segment, _, label in diarization.itertracks(yield_label=True):  # type: ignore
             speaker = label
             start, end, _ = segment.start, segment.end, segment.duration
@@ -150,18 +164,21 @@ def get_huggingface_key():
 
     if "huggingface_api_key_file" not in params:
         logger.error("HuggingFace API key file not found in config file")
-        raise Exception("HuggingFace API key file not found in config file")
+        raise ValueError("HuggingFace API key file not found in config file")
 
     hugging_face_key_file = params["huggingface_api_key_file"]
     logger.debug(f"HuggingFace API key file: {hugging_face_key_file}")
 
-    with open(hugging_face_key_file, "r") as key_file:
+    with open(hugging_face_key_file, "r", encoding="utf-8") as key_file:
         hugging_face_key = key_file.read().strip()
 
     return hugging_face_key
 
 
-def main():
+def main() -> None:
+    """
+    Diarize audio file
+    """
     parser = argparse.ArgumentParser(description="Diarize audio file")
 
     parser.add_argument("--input", type=str, help="input audio file", required=True)
@@ -213,7 +230,7 @@ def main():
         logger.info(f"Speaker count range: {args.min_speakers} - {args.max_speakers}")
 
     if has_speaker_count and has_speaker_count_range:
-        raise Exception(
+        raise ValueError(
             "Speaker count and speaker count range cannot both be specified"
         )
 

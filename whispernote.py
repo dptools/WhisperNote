@@ -1,5 +1,9 @@
 #!/usr/bin/env python
+"""
+Runner script for WhisperNote.
+"""
 from rich.console import Console
+from rich.logging import RichHandler
 
 console = Console()
 
@@ -9,11 +13,11 @@ with console.status("[green]Loading...") as status:
 
     file = Path(__file__).resolve()
     parent = file.parent
-    root = None
+    ROOT = None
     for parent in file.parents:
         if parent.name == "WhisperNote":
-            root = parent
-    sys.path.append(str(root))
+            ROOT = parent
+    sys.path.append(str(ROOT))
 
     # remove current directory from path
     try:
@@ -31,7 +35,6 @@ with console.status("[green]Loading...") as status:
     from typing import Dict, List, Optional
 
     import pyfiglet
-    from rich.logging import RichHandler
 
     import whispernote.helpers.utils as utils
     from whispernote import diarize, subtitle, transcribe
@@ -143,11 +146,28 @@ def run_whispernote(
     speaker_count: Optional[int] = None,
     min_speakers: Optional[int] = None,
     max_speakers: Optional[int] = None,
-):
+) -> None:
+    """
+    Runs Transcription, Diarization, and SRT generation in sequence.
+
+    Args:
+        audio_input: Path to the input audio file.
+        transcript_output: Path to the output transcript file.
+        diarization_output: Path to the output diarization file.
+        srt_output: Path to the output SRT file.
+        transcript_model: Model to use for transcription.
+        language: Language of the audio file.
+        speaker_count: Number of speakers, if known.
+        min_speakers: Minimum number of speakers, if known.
+        max_speakers: Maximum number of speakers, if known.
+
+    Returns:
+        None
+    """
     if transcript_output:
         logger.info(f"Running transcription for {audio_input}")
         transcript = transcribe.transcribe(
-            input=audio_input,
+            input_audio_file_path=audio_input,
             model=transcript_model,
             language=language,
         )
@@ -179,8 +199,17 @@ def run_whispernote(
         )
         logger.info(f"Generated Diarized SRT at {srt_output}")
 
+    logger.info("WhisperNote run complete")
+    return
+
 
 def main():
+    """
+    Main function for WhisperNote.
+
+    Returns:
+        None
+    """
     log_params = utils.config(utils.get_config_file(), "logging")
     log_file = log_params[MODULE_NAME]
     file_handler = logging.FileHandler(log_file, mode="a")
@@ -209,7 +238,7 @@ def main():
     parser.add_argument(
         "--diarization-output",
         type=str,
-        help="output file with speaker diarization from puannote.audio (CSV)",
+        help="output file with speaker diarization from pyannote.audio (CSV)",
         required=False,
     )
     parser.add_argument(
@@ -312,7 +341,7 @@ def main():
         if transcript_output:
             logger.info(f"Running transcription for {args.input}")
             transcript = transcribe.transcribe(
-                input=args.input,
+                input_audio_file_path=args.input,
                 model=args.transcript_model,
                 language=args.language,
                 condition_on_previous_text=args.condition_on_previous_text,
