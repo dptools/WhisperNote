@@ -250,7 +250,8 @@ def main():
     parser.add_argument(
         "--transcribeme-output",
         type=str,
-        help="output file with transcribeMe style file generated from transcript, and diarization (TXT)",
+        help="output file with transcribeMe style file generated from transcript,\
+            and diarization (TXT)",
         required=False,
     )
     parser.add_argument(

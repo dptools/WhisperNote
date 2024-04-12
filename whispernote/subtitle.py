@@ -199,6 +199,23 @@ def combine_transcript_diarization(
     whisper_json_path: str,
     diarization_csv_path: str,
 ) -> pd.DataFrame:
+    """
+    Combines the transcript and diarization into a single Pandas DataFrame.
+    Uses speaker labels from the diarization to assign speakers to the transcript.
+
+    The resulting DataFrame has the following columns:
+    - start: The start time of the segment in milliseconds.
+    - end: The end time of the segment in milliseconds.
+    - text: The segment.
+    - speaker: The speaker label.
+
+    Args:
+        whisper_json_path (str): Path to the Whisper JSON file.
+        diarization_csv_path (str): Path to the diarization CSV file.
+
+    Returns:
+        pd.DataFrame: The combined transcript and diarization as a Pandas DataFrame.
+    """
     transcript_json = merge_transcript_json(whisper_json_path=whisper_json_path)
     transcript_df = transcript_json_to_df(transcript_json=transcript_json)
     diarization_df = get_diarization_df(diarization_path=diarization_csv_path)
@@ -221,6 +238,19 @@ def combine_transcript_diarization(
 def process_combined_transcript_diarization(
     df: pd.DataFrame,
 ) -> pd.DataFrame:
+    """
+    Post-processes the combined transcript and diarization DataFrame.
+
+    - Replaces empty speaker values with NaN.
+    - Fills in missing speaker values.
+    - Drops rows with empty text.
+
+    Args:
+        df (pd.DataFrame): The combined transcript and diarization DataFrame.
+
+    Returns:
+        pd.DataFrame: The processed DataFrame.
+    """
     # Replace empty speaker values with NaN
     df["speaker"].replace("", float("NaN"), inplace=True)
 
@@ -235,6 +265,16 @@ def process_combined_transcript_diarization(
 
 
 def construct_diarised_subtitles(whisper_json: str, diarization_path: str) -> Subtitles:
+    """
+    Constructs diarized subtitles from a Whisper JSON file and a diarization CSV file.
+
+    Args:
+        whisper_json (str): Path to the Whisper JSON file.
+        diarization_path (str): Path to the diarization CSV file.
+
+    Returns:
+        Subtitles: The diarized subtitles.
+    """
     diarized_transcript_df = combine_transcript_diarization(
         whisper_json_path=whisper_json,
         diarization_csv_path=diarization_path,
@@ -265,6 +305,20 @@ def generate_diarized_subtitles(
     transcribeMe_path: Optional[str] = None,
     max_words_per_line: int = 7,
 ) -> List[str]:
+    """
+    Generates diarized subtitles from a Whisper JSON file and a diarization CSV file.
+
+    Args:
+        whisper_json (str): Path to the Whisper JSON file.
+        diarization_path (str): Path to the diarization CSV file.
+        srt_path (str): Path to the output
+
+    Returns:
+        List[str]: List of paths to the generated subtitle files.
+            - The first element is the path to the SRT file. (always present)
+            - The second element is the path to the TranscribeMe file.
+                (if transcribeMe_path is not None)
+    """
     subtitles = construct_diarised_subtitles(
         whisper_json=whisper_json, diarization_path=diarization_path
     )
