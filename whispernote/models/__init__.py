@@ -1,1 +1,3 @@
-# init file for module
+"""
+Models for WhisperNote
+"""

@@ -1,3 +1,7 @@
+"""
+Contains utility functions used by the WhisperNote package.
+"""
+
 from configparser import ConfigParser
 import subprocess
 import os
@@ -8,6 +12,16 @@ BLACKLISTED_GPU_IDS = []
 
 
 def config(filename: str, section: str) -> dict:
+    """
+    Read the configuration file and return a dictionary of the configuration parameters.
+
+    Args:
+        filename (str): The name of the configuration file.
+        section (str): The section of the configuration file to read.
+
+    Returns:
+        dict: A dictionary of the configuration parameters.
+    """
     parser = ConfigParser()
     parser.read(filename)
 
@@ -17,8 +31,8 @@ def config(filename: str, section: str) -> dict:
         for param in params:
             conf[param[0]] = param[1]
     else:
-        raise Exception(
-            "Section {0} not found in the {1} file".format(section, filename)
+        raise ValueError(
+            f"Section {section} not found in the {filename} file"
         )
 
     return conf
@@ -128,9 +142,10 @@ def execute_commands(
             stdout=stdout,
             stderr=stderr,
             shell=True,
+            check=False
         )
     else:
-        result = subprocess.run(command_array, stdout=stdout, stderr=stderr)
+        result = subprocess.run(command_array, stdout=stdout, stderr=stderr, check=False)
 
     if result.returncode != 0:
         logger.error("=====================================")
